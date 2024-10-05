@@ -1,119 +1,99 @@
-import jax
-import jax.numpy as jnp
-import flax.linen as nn
-from typing import Any, Optional
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Optional
 from configuration_hybrid_clip import HybridCLIPConfig
-from flax.core.frozen_dict import FrozenDict
-from transformers.modeling_flax_utils import FlaxPreTrainedModel
-from transformers.models.clip.modeling_flax_clip import FlaxCLIPOutput
+from transformers import PreTrainedModel
 
 class CLIPEncoder(nn.Module):
-    config: Any
-    dtype: jnp.dtype = jnp.float32
+    def __init__(self, config):
+        super().__init__()
+        self.layers = nn.ModuleList([nn.Linear(config.hidden_size, config.hidden_size) for _ in range(config.num_hidden_layers)])
+        self.layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
-    def setup(self):
-        self.layers = [nn.Dense(self.config.hidden_size, dtype=self.dtype) for _ in range(self.config.num_hidden_layers)]
-        self.layernorm = nn.LayerNorm(epsilon=self.config.layer_norm_eps, dtype=self.dtype)
-
-    def __call__(self, x, deterministic: bool = True):
+    def forward(self, x):
         for layer in self.layers:
-            x = nn.relu(layer(x))
+            x = F.relu(layer(x))
         return self.layernorm(x)
 
-class FlaxRNAProteinCLIPModule(nn.Module):
-    config: HybridCLIPConfig
-    dtype: jnp.dtype = jnp.float32
+class RNAProteinCLIPModule(nn.Module):
+    def __init__(self, config: HybridCLIPConfig):
+        super().__init__()
+        self.config = config
+        self.rna_model = CLIPEncoder(config.rna_config)
+        self.protein_model = CLIPEncoder(config.protein_config)
+        self.rna_projection = nn.Linear(config.rna_config.hidden_size, config.projection_dim, bias=False)
+        self.protein_projection = nn.Linear(config.protein_config.hidden_size, config.projection_dim, bias=False)
+        self.logit_scale = nn.Parameter(torch.ones([]) * config.logit_scale_init_value)
 
-    def setup(self):
-        self.rna_model = CLIPEncoder(self.config.rna_config, dtype=self.dtype)
-        self.protein_model = CLIPEncoder(self.config.protein_config, dtype=self.dtype)
-        self.rna_projection = nn.Dense(self.config.projection_dim, dtype=self.dtype, use_bias=False)
-        self.protein_projection = nn.Dense(self.config.projection_dim, dtype=self.dtype, use_bias=False)
-        self.logit_scale = self.param("logit_scale", jax.nn.initializers.constant(self.config.logit_scale_init_value), [])
-
-    def __call__(self, rna_values, protein_values, deterministic: bool = True):
-        rna_outputs = self.rna_model(rna_values, deterministic=deterministic)
-        protein_outputs = self.protein_model(protein_values, deterministic=deterministic)
+    def forward(self, rna_values, protein_values):
+        rna_outputs = self.rna_model(rna_values)
+        protein_outputs = self.protein_model(protein_values)
 
         rna_embeds = self.rna_projection(rna_outputs)
         protein_embeds = self.protein_projection(protein_outputs)
 
-        rna_embeds = rna_embeds / jnp.linalg.norm(rna_embeds, axis=-1, keepdims=True)
-        protein_embeds = protein_embeds / jnp.linalg.norm(protein_embeds, axis=-1, keepdims=True)
+        rna_embeds = F.normalize(rna_embeds, dim=-1)
+        protein_embeds = F.normalize(protein_embeds, dim=-1)
 
-        logit_scale = jnp.exp(self.logit_scale)
-        logits_per_rna_protein = jnp.matmul(rna_embeds, protein_embeds.T) * logit_scale
+        logit_scale = self.logit_scale.exp()
+        logits_per_rna_protein = torch.matmul(rna_embeds, protein_embeds.t()) * logit_scale
 
-        return FlaxCLIPOutput(
-            logits_per_rna_protein=logits_per_rna_protein,
-            rna_embeds=rna_embeds,
-            protein_embeds=protein_embeds,
-        )
+        return {
+            "logits_per_rna_protein": logits_per_rna_protein,
+            "rna_embeds": rna_embeds,
+            "protein_embeds": protein_embeds,
+        }
 
-class FlaxDiffMapProteinCLIPModule(nn.Module):
-    config: HybridCLIPConfig
-    dtype: jnp.dtype = jnp.float32
+class DiffMapProteinCLIPModule(nn.Module):
+    def __init__(self, config: HybridCLIPConfig):
+        super().__init__()
+        self.config = config
+        self.diffmap_model = CLIPEncoder(config.diffmap_config)
+        self.protein_model = CLIPEncoder(config.protein_config)
+        self.diffmap_projection = nn.Linear(config.diffmap_config.hidden_size, config.projection_dim, bias=False)
+        self.protein_projection = nn.Linear(config.protein_config.hidden_size, config.projection_dim, bias=False)
+        self.logit_scale = nn.Parameter(torch.ones([]) * config.logit_scale_init_value)
 
-    def setup(self):
-        self.diffmap_model = CLIPEncoder(self.config.diffmap_config, dtype=self.dtype)
-        self.protein_model = CLIPEncoder(self.config.protein_config, dtype=self.dtype)
-        self.diffmap_projection = nn.Dense(self.config.projection_dim, dtype=self.dtype, use_bias=False)
-        self.protein_projection = nn.Dense(self.config.projection_dim, dtype=self.dtype, use_bias=False)
-        self.logit_scale = self.param("logit_scale", jax.nn.initializers.constant(self.config.logit_scale_init_value), [])
-
-    def __call__(self, diffmap_values, protein_values, deterministic: bool = True):
-        diffmap_outputs = self.diffmap_model(diffmap_values, deterministic=deterministic)
-        protein_outputs = self.protein_model(protein_values, deterministic=deterministic)
+    def forward(self, diffmap_values, protein_values):
+        diffmap_outputs = self.diffmap_model(diffmap_values)
+        protein_outputs = self.protein_model(protein_values)
 
         diffmap_embeds = self.diffmap_projection(diffmap_outputs)
         protein_embeds = self.protein_projection(protein_outputs)
 
-        diffmap_embeds = diffmap_embeds / jnp.linalg.norm(diffmap_embeds, axis=-1, keepdims=True)
-        protein_embeds = protein_embeds / jnp.linalg.norm(protein_embeds, axis=-1, keepdims=True)
+        diffmap_embeds = F.normalize(diffmap_embeds, dim=-1)
+        protein_embeds = F.normalize(protein_embeds, dim=-1)
 
-        logit_scale = jnp.exp(self.logit_scale)
-        logits_per_diffmap_protein = jnp.matmul(diffmap_embeds, protein_embeds.T) * logit_scale
+        logit_scale = self.logit_scale.exp()
+        logits_per_diffmap_protein = torch.matmul(diffmap_embeds, protein_embeds.t()) * logit_scale
 
-        return FlaxCLIPOutput(
-            logits_per_diffmap_protein=logits_per_diffmap_protein,
-            diffmap_embeds=diffmap_embeds,
-            protein_embeds=protein_embeds,
-        )
+        return {
+            "logits_per_diffmap_protein": logits_per_diffmap_protein,
+            "diffmap_embeds": diffmap_embeds,
+            "protein_embeds": protein_embeds,
+        }
 
-class FlaxRNAProteinCLIP(FlaxPreTrainedModel):
+class RNAProteinCLIP(PreTrainedModel):
     config_class = HybridCLIPConfig
-    module_class = FlaxRNAProteinCLIPModule
+    base_model_prefix = "rna_protein_clip"
 
-    def __init__(self, config: HybridCLIPConfig, input_shape: Optional[tuple] = None, seed: int = 0, dtype: jnp.dtype = jnp.float32, **kwargs):
-        if input_shape is None:
-            input_shape = ((1, config.rna_config.max_position_embeddings), (1, config.protein_config.max_position_embeddings))
-        module = self.module_class(config=config, dtype=dtype, **kwargs)
-        super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype)
+    def __init__(self, config: HybridCLIPConfig):
+        super().__init__(config)
+        self.config = config
+        self.rna_protein_clip = RNAProteinCLIPModule(config)
 
-    def __call__(self, rna_values, protein_values, params: dict = None, dropout_rng: jax.random.PRNGKey = None, train: bool = False):
-        return self.module.apply(
-            {"params": params or self.params},
-            jnp.array(rna_values, dtype=self.dtype),
-            jnp.array(protein_values, dtype=self.dtype),
-            not train,
-            rngs={"dropout": dropout_rng} if dropout_rng is not None else None,
-        )
+    def forward(self, rna_values, protein_values):
+        return self.rna_protein_clip(rna_values, protein_values)
 
-class FlaxDiffMapProteinCLIP(FlaxPreTrainedModel):
+class DiffMapProteinCLIP(PreTrainedModel):
     config_class = HybridCLIPConfig
-    module_class = FlaxDiffMapProteinCLIPModule
+    base_model_prefix = "diffmap_protein_clip"
 
-    def __init__(self, config: HybridCLIPConfig, input_shape: Optional[tuple] = None, seed: int = 0, dtype: jnp.dtype = jnp.float32, **kwargs):
-        if input_shape is None:
-            input_shape = ((1, config.diffmap_config.max_position_embeddings), (1, config.protein_config.max_position_embeddings))
-        module = self.module_class(config=config, dtype=dtype, **kwargs)
-        super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype)
+    def __init__(self, config: HybridCLIPConfig):
+        super().__init__(config)
+        self.config = config
+        self.diffmap_protein_clip = DiffMapProteinCLIPModule(config)
 
-    def __call__(self, diffmap_values, protein_values, params: dict = None, dropout_rng: jax.random.PRNGKey = None, train: bool = False):
-        return self.module.apply(
-            {"params": params or self.params},
-            jnp.array(diffmap_values, dtype=self.dtype),
-            jnp.array(protein_values, dtype=self.dtype),
-            not train,
-            rngs={"dropout": dropout_rng} if dropout_rng is not None else None,
-        )
+    def forward(self, diffmap_values, protein_values):
+        return self.diffmap_protein_clip(diffmap_values, protein_values)
