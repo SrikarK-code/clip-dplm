@@ -16,14 +16,41 @@ class CLIPEncoder(nn.Module):
             x = F.relu(layer(x))
         return self.layernorm(x)
 
+## could experiment with more complex projection head
+class ProjectionHead(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim=None, dropout=0.1):
+        super().__init__()
+        if hidden_dim is None:
+            hidden_dim = input_dim
+
+        self.projection = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, output_dim),
+            nn.LayerNorm(output_dim)
+        )
+
+    def forward(self, x):
+        return self.projection(x)
+
 class RNAProteinCLIPModule(nn.Module):
     def __init__(self, config: HybridCLIPConfig):
         super().__init__()
         self.config = config
         self.rna_model = CLIPEncoder(config.rna_config)
         self.protein_model = CLIPEncoder(config.protein_config)
-        self.rna_projection = nn.Linear(config.rna_config.hidden_size, config.projection_dim, bias=False)
-        self.protein_projection = nn.Linear(config.protein_config.hidden_size, config.projection_dim, bias=False)
+        self.rna_projection = ProjectionHead(
+            input_dim=config.rna_config.hidden_size,
+            output_dim=config.projection_dim,
+            hidden_dim=config.projection_dim * 2
+        )
+        self.protein_projection = ProjectionHead(
+            input_dim=config.protein_config.hidden_size,
+            output_dim=config.projection_dim,
+            hidden_dim=config.projection_dim * 2
+        )
         self.logit_scale = nn.Parameter(torch.ones([]) * config.logit_scale_init_value)
 
     def forward(self, rna_values, protein_values):
@@ -51,8 +78,16 @@ class DiffMapProteinCLIPModule(nn.Module):
         self.config = config
         self.diffmap_model = CLIPEncoder(config.diffmap_config)
         self.protein_model = CLIPEncoder(config.protein_config)
-        self.diffmap_projection = nn.Linear(config.diffmap_config.hidden_size, config.projection_dim, bias=False)
-        self.protein_projection = nn.Linear(config.protein_config.hidden_size, config.projection_dim, bias=False)
+        self.diffmap_projection = ProjectionHead(
+            input_dim=config.diffmap_config.hidden_size,
+            output_dim=config.projection_dim,
+            hidden_dim=config.projection_dim * 2
+        )
+        self.protein_projection = ProjectionHead(
+            input_dim=config.protein_config.hidden_size,
+            output_dim=config.projection_dim,
+            hidden_dim=config.projection_dim * 2
+        )
         self.logit_scale = nn.Parameter(torch.ones([]) * config.logit_scale_init_value)
 
     def forward(self, diffmap_values, protein_values):
