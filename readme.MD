@@ -33,7 +33,6 @@ This project implements CLIP (Contrastive Language-Image Pre-training) inspired 
 1. Prepare your RNA, Protein, and DiffMap data
 2. Set up the configuration in `ablation.py`
 3. Run `python ablation.py`
-4. Analyze the results to see which combination works best
 
 ## Detailed Explanation
 
