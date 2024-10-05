@@ -56,6 +56,3 @@ This project implements CLIP (Contrastive Language-Image Pre-training) inspired 
    - Train both CLIP models (RNA-Protein and DiffMap-Protein)
    - For each CLIP model, train all classifier types
    - Evaluate performance of each combination
-   - Compare results to find the best setup
-
-This project allows you to explore which type of input (RNA or DiffMap) works best with proteins, and which classifier is most effective for your specific task.
