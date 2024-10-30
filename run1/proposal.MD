@@ -32,9 +32,7 @@ Data augmentation strategies were systematically evaluated but showed limited im
 
 ___________________________________________________________________________________________________________ 
 
-The initial implementation phase spanned three intensive weeks, beginning with data processing, followed by model implementation, initial training cycles, and basic evaluation. The optimization phase extended over 4 weeks, encompassing architecture search, hyperparameter tuning, error analysis, and cross-dataset validation. Throughout this period, both the base DiffMapProteinCLIP and OptimizedCLIPModule were developed and refined in parallel.Marker gene space analysis revealed a critical insight: while hierarchical markers showed good separation (e.g., CD3 vs CD19 embedding cosine similarity of 0.23), subtype-specific markers remained heavily entangled in the learned space (CD4 vs CD8 similarity of 0.78). This pattern persisted across both architectures, suggesting a fundamental limitation in the current approach to cell state representation. 
-
-Based on these comprehensive findings, a data representation revamp is proposed: 
+ a data representation revamp is proposed: 
 
 Week 1-2 will focus on fundamental data enhancement: 
 
