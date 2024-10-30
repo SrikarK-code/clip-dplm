@@ -234,22 +234,15 @@ class HybridCLIPConfig:
        self.learning_rate=learning_rate
        self.epochs=epochs
 def load_datasets():
-   immune=sc.read('TS_immune.h5ad')
-   k562=sc.read('norman_k562.h5ad')
-   sc.pp.normalize_total(immune)
-   sc.pp.normalize_total(k562)
-   sc.pp.log1p(immune)
-   sc.pp.log1p(k562)
-   immune_markers=pd.read_csv('immune_markers.csv')
-   k562_markers=pd.read_csv('k562_markers.csv')
-   train_idx,val_idx=train_test_split(range(len(immune)),test_size=0.15)
-   train_dataset=ImmuneCellDataset(immune[train_idx],immune_markers.iloc[train_idx])
-   val_dataset=ImmuneCellDataset(immune[val_idx],immune_markers.iloc[val_idx])
-   test_datasets={'ImmGen':ImmuneCellDataset(sc.read('immgen.h5ad'),pd.read_csv('immgen_markers.csv')),
-                 'HCA':ImmuneCellDataset(sc.read('hca.h5ad'),pd.read_csv('hca_markers.csv')),
-                 'CITE-seq':ImmuneCellDataset(sc.read('cite_seq.h5ad'),pd.read_csv('cite_seq_markers.csv')),
-                 'K562':ImmuneCellDataset(k562,k562_markers)}
-   return train_dataset,val_dataset,test_datasets
+    train_dataset = pickle.load(open('train_dataset.pkl', 'rb'))
+    val_dataset = pickle.load(open('val_dataset.pkl', 'rb'))
+    test_datasets = {
+        'ImmGen': pickle.load(open('test_immgen.pkl', 'rb')),
+        'HCA': pickle.load(open('test_hca.pkl', 'rb')),
+        'CITE-seq': pickle.load(open('test_cite_seq.pkl', 'rb')),
+        'K562': pickle.load(open('test_k562.pkl', 'rb'))
+    }
+    return train_dataset, val_dataset, test_datasets
 def analyze_results(all_results):
    analysis={}
    for param,param_results in all_results.items():
