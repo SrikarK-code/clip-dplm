@@ -1,0 +1,20 @@
+project_directory/
+│
+├── models/
+│   ├── cell_state_encoder.py
+│   ├── perturbation_encoder.py
+│   ├── protein_encoder.py
+│   ├── gnn_layers.py
+│   ├── projection_layers.py
+│   ├── triple_flow_model.py
+│
+├── utils/
+│   ├── data_loader.py
+│   ├── preprocess.py
+│   ├── evaluation.py
+│   └── loss_functions.py
+│
+├── train.py
+├── validate.py
+├── config.py
+└── README.md
