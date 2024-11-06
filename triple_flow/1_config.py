@@ -54,8 +54,6 @@ from enum import Enum
 import threading
 from datetime import datetime
 
-# [Previous imports...]
-
 class BiologicalDataType(Enum):
     """
     Biological data types with corresponding mathematical spaces
