@@ -69,32 +69,14 @@ class BiologicalDataType(Enum):
 
 class BiologicalScale(Enum):
     """
-    Biological scales with corresponding statistical properties
+    Biological scale for single-cell analysis
     
-    Each scale requires different normalization and handling:
-    - Single cell: High noise, sparse
-    - Pseudo bulk: Averaged, reduced noise
-    - Population: Aggregate statistics
+    Mathematical space:
+    - Single cell: High-dimensional sparse data in ℝ^n
+    - Characterized by technical and biological noise
+    - Requires specialized normalization
     """
     SINGLE_CELL = "single_cell"
-    PSEUDO_BULK = "pseudo_bulk"
-    POPULATION = "population"
-    TIME_SERIES = "time_series"
-
-class CellTrajectoryType(Enum):
-    """
-    Cell trajectory topologies
-    
-    Mathematical structures:
-    - LINEAR: Total order
-    - BRANCHING: Tree structure
-    - CYCLIC: Circle topology
-    - BIFURCATION: Critical points
-    """
-    LINEAR = "linear"
-    BRANCHING = "branching"
-    CYCLIC = "cyclic"
-    BIFURCATION = "bifurcation"
 
 @dataclass
 class BiologicalLossConfig:
@@ -110,25 +92,9 @@ class BiologicalLossConfig:
     protein_loss_weight: float = 1.0    # Protein structure preservation
     perturbation_loss_weight: float = 1.0  # Perturbation effect accuracy
     
-    # Trajectory-specific losses
-    pseudotime_weight: float = 1.0  # Temporal ordering
-    branching_weight: float = 0.5   # Lineage preservation
-    cycle_weight: float = 0.5       # Cycle stability
-    
-    # Quality control losses
-    sparsity_penalty: float = 0.1   # L1 regularization
-    dropout_weight: float = 0.2     # Dropout robustness
-    library_size_weight: float = 0.3  # Size normalization
-    
-    # Scale-specific weights
-    scale_weights: Dict[BiologicalScale, float] = field(
-        default_factory=lambda: {
-            BiologicalScale.SINGLE_CELL: 1.0,
-            BiologicalScale.PSEUDO_BULK: 0.8,
-            BiologicalScale.POPULATION: 0.6,
-            BiologicalScale.TIME_SERIES: 0.9
-        }
-    )
+    # Regularization
+    sparsity_penalty: float = 0.1   # L1 regularization for gene expression
+    library_size_weight: float = 0.3  # Size factor normalization
 
 @dataclass
 class ICNNConfig:
