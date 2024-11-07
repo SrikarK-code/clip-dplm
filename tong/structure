@@ -1,20 +1,39 @@
-project_directory/
-│
+triple_flow/
 ├── models/
-│   ├── cell_state_encoder.py
-│   ├── perturbation_encoder.py
-│   ├── protein_encoder.py
-│   ├── gnn_layers.py
-│   ├── projection_layers.py
-│   ├── triple_flow_model.py
-│
+│   ├── __init__.py
+│   ├── encoders/
+│   │   ├── __init__.py
+│   │   ├── cell_encoder.py
+│   │   ├── perturbation_encoder.py
+│   │   └── protein_encoder.py
+│   ├── flows/
+│   │   ├── __init__.py 
+│   │   ├── triple_flow.py
+│   │   └── ot_flow.py
+│   └── layers/
+│       ├── __init__.py
+│       ├── gnn.py
+│       └── projections.py
 ├── utils/
-│   ├── data_loader.py
-│   ├── preprocess.py
-│   ├── evaluation.py
-│   └── loss_functions.py
-│
-├── train.py
-├── validate.py
-├── config.py
+│   ├── __init__.py
+│   ├── losses.py
+│   ├── metrics.py
+│   ├── data.py
+│   ├── visualization.py
+│   └── training.py
+├── configs/
+│   ├── default.yaml
+│   └── experiments/
+│       ├── cell_lines/
+│       └── proteins/
+├── experiments/
+│   ├── train.py
+│   ├── evaluate.py
+│   └── visualize.py
+├── notebooks/
+│   ├── data_analysis.ipynb
+│   └── model_analysis.ipynb
+├── scripts/
+│   ├── preprocess_data.py
+│   └── compute_embeddings.py
 └── README.md
