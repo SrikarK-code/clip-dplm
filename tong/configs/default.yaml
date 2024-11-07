@@ -1,0 +1,84 @@
+# Model Configuration
+model:
+  latent_dim: 512
+  dropout: 0.1
+
+  # Cell State Encoder
+  cell_encoder:
+    n_layers: 3
+    n_heads: 8
+    n_neighbors: 32
+    gnn_type: 'pignn'
+    use_time_encoding: true
+    time_encoding_dim: 128
+
+  # Perturbation Encoder
+  pert_encoder:
+    n_genes: 10  # Top up/down regulated genes
+    esm_dim: 1280
+    use_cross_attention: true
+    n_heads: 8
+
+  # Protein Encoder
+  protein_encoder:
+    use_layernorm: true
+    hidden_dims: [1024, 768]
+
+  # Flow Configuration
+  flows:
+    sigma: 0.1
+    n_layers: 3
+    hidden_dim: 1024
+    flow_type: 'exact_ot'  # ['exact_ot', 'sb', 'independent']
+    use_time_embedding: true
+    time_embed_dim: 128
+
+# Training Configuration
+training:
+  batch_size: 256
+  learning_rate: 1e-4
+  weight_decay: 1e-5
+  max_epochs: 100
+  early_stopping_patience: 10
+  num_workers: 4
+  clip_grad_norm: 1.0
+  checkpoint_frequency: 10
+
+  # Loss Weights
+  loss_weights:
+    contrastive: 1.0
+    flow: 1.0
+    regularization: 0.1
+
+  # Contrastive Learning
+  temperature: 0.1
+  use_hard_negatives: true
+  queue_size: 8192
+
+# Data Configuration
+data:
+  train_path: "data/train.h5ad"
+  val_path: "data/val.h5ad"
+  test_path: "data/test.h5ad"
+  protein_embeddings_path: "data/protein_embeddings.pkl"
+  gene_to_esm_path: "data/gene_to_esm.pkl"
+
+  # Data Augmentation
+  augmentation:
+    gene_dropout: 0.1
+    edge_dropout: 0.15
+    pert_noise: 0.05
+
+# Evaluation Configuration
+eval:
+  metrics: ['wasserstein', 'mmd', 'fid']
+  vis_frequency: 100
+  save_embeddings: true
+  compute_biological_metrics: true
+
+# Logging Configuration
+logging:
+  wandb: true
+  project_name: "triple-flow"
+  log_frequency: 10
+  save_dir: "experiments/results"
