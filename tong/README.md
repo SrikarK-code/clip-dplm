@@ -1,3 +1,7 @@
+The Triple Flow workflow consists of first encoding the three biological modalities (cell states through GNN, perturbation effects via ESM embeddings, and protein information) into a shared 512-dimensional latent space, where CLIP-style contrastive losses (cell-perturbation, cell-protein, and perturbation-protein pairs) ensure global alignment between these spaces. Then, for local structure preservation and smooth transitions, we employ Optimal Transport Conditional Flow Matching (OT-CFM) to learn the vector fields between these aligned spaces, allowing us to transform between them. Finally, during inference, even without perturbation information, we can leverage the aligned spaces to generate biologically meaningful trajectories from cell states to proteins since the contrastive learning has enforced semantic consistency across all three spaces.
+
+
+
 # Triple Flow Model
 
 An optimal transport-based flow model for aligning cell states, perturbation effects, and protein embeddings in biological spaces.
